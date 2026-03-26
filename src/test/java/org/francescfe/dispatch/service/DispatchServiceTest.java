@@ -4,8 +4,10 @@ import org.francescfe.dispatch.message.DispatchTracking;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
 import org.francescfe.dispatch.util.TestEventData;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.mockito.Mock;
@@ -39,18 +41,26 @@ class DispatchServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    @DisplayName("process publishes order dispatched and dispatch tracking events")
     void process_Success() throws Exception {
         CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
         when(kafkaProducerMock.send(anyString(), any())).thenReturn(sendFutureMock);
 
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         service.process(testEvent);
+
         verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
-        verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), any(DispatchTracking.class));
+
+        ArgumentCaptor<DispatchTracking> dispatchTrackingCaptor = ArgumentCaptor.forClass(DispatchTracking.class);
+        verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), dispatchTrackingCaptor.capture());
+
+        DispatchTracking dispatchTracking = dispatchTrackingCaptor.getValue();
+        assertEquals(testEvent.getOrderId(), dispatchTracking.getOrderId());
+        assertEquals("DISPATCHED", dispatchTracking.getStatus());
     }
 
     @Test
+    @DisplayName("process propagates producer failure from order dispatched publish")
     public void process_ProducerThrowsException() {
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         doThrow(new RuntimeException("Producer failure")).when(kafkaProducerMock).send(eq("order.dispatched"), any(OrderDispatched.class));
@@ -59,5 +69,22 @@ class DispatchServiceTest {
 
         verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
         assertEquals("Producer failure", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("process propagates producer failure from dispatch tracking publish")
+    void process_TrackingProducerThrowsException() {
+        CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
+        when(kafkaProducerMock.send(eq("order.dispatched"), any(OrderDispatched.class))).thenReturn(sendFutureMock);
+        doThrow(new RuntimeException("Tracking producer failure"))
+                .when(kafkaProducerMock).send(eq("dispatch.tracking"), any(DispatchTracking.class));
+
+        OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
+
+        Exception exception = assertThrows(RuntimeException.class, () -> service.process(testEvent));
+
+        verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
+        verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), any(DispatchTracking.class));
+        assertEquals("Tracking producer failure", exception.getMessage());
     }
 }
