@@ -6,6 +6,9 @@ import org.francescfe.dispatch.util.TestEventData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -21,14 +24,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class DispatchServiceTest {
 
     private DispatchService service;
-    private KafkaTemplate kafkaProducerMock;
+    @Mock
+    private KafkaTemplate<String, OrderDispatched> kafkaProducerMock;
 
     @BeforeEach
     void setUp() {
-        kafkaProducerMock = mock(KafkaTemplate.class);
         service = new DispatchService(kafkaProducerMock);
     }
 
