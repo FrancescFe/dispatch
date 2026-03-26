@@ -4,7 +4,6 @@ import org.francescfe.dispatch.message.DispatchTracking;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
 import org.francescfe.dispatch.util.TestEventData;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -41,7 +40,6 @@ class DispatchServiceTest {
     }
 
     @Test
-    @DisplayName("process publishes order dispatched and dispatch tracking events")
     void process_Success() throws Exception {
         CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
         when(kafkaProducerMock.send(anyString(), any())).thenReturn(sendFutureMock);
@@ -60,7 +58,6 @@ class DispatchServiceTest {
     }
 
     @Test
-    @DisplayName("process propagates producer failure from order dispatched publish")
     public void process_ProducerThrowsException() {
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         doThrow(new RuntimeException("Producer failure")).when(kafkaProducerMock).send(eq("order.dispatched"), any(OrderDispatched.class));
@@ -72,7 +69,6 @@ class DispatchServiceTest {
     }
 
     @Test
-    @DisplayName("process propagates producer failure from dispatch tracking publish")
     void process_TrackingProducerThrowsException() {
         CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
         when(kafkaProducerMock.send(eq("order.dispatched"), any(OrderDispatched.class))).thenReturn(sendFutureMock);
