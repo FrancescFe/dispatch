@@ -1,11 +1,13 @@
 package org.francescfe.dispatch.service;
 
+import org.francescfe.dispatch.message.DispatchTracking;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
 import org.francescfe.dispatch.util.TestEventData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +31,7 @@ class DispatchServiceTest {
 
     private DispatchService service;
     @Mock
-    private KafkaTemplate<String, OrderDispatched> kafkaProducerMock;
+    private KafkaTemplate<String, Object> kafkaProducerMock;
 
     @BeforeEach
     void setUp() {
@@ -37,12 +39,15 @@ class DispatchServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void process_Success() throws Exception {
-        when(kafkaProducerMock.send(anyString(), any(OrderDispatched.class))).thenReturn(mock(CompletableFuture.class));
+        CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
+        when(kafkaProducerMock.send(anyString(), any())).thenReturn(sendFutureMock);
 
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         service.process(testEvent);
         verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
+        verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), any(DispatchTracking.class));
     }
 
     @Test
