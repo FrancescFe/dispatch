@@ -1,7 +1,11 @@
 package org.francescfe.dispatch.service;
 
+import org.francescfe.dispatch.message.OrderCreated;
+import org.francescfe.dispatch.util.TestEventData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static java.util.UUID.randomUUID;
 
 class DispatchServiceTest {
 
@@ -14,6 +18,7 @@ class DispatchServiceTest {
 
     @Test
     void process() {
-        service.process("payload");
+        OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
+        service.process(testEvent);
     }
 }
