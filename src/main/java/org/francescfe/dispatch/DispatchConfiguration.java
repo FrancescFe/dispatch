@@ -5,7 +5,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.francescfe.dispatch.message.OrderCreated;
-import org.francescfe.dispatch.message.OrderDispatched;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,13 +53,13 @@ public class DispatchConfiguration {
     }
 
     @Bean
-    public KafkaTemplate<String, OrderDispatched> kafkaTemplate(
-            ProducerFactory<String, OrderDispatched> producerFactory) {
+    public KafkaTemplate<String, Object> kafkaTemplate(
+            ProducerFactory<String, Object> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
 
     @Bean
-    public ProducerFactory<String, OrderDispatched> producerFactory(
+    public ProducerFactory<String, Object> producerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
