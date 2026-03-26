@@ -17,13 +17,8 @@ public class DispatchService {
     private final KafkaTemplate<String, Object> kafkaProducer;
 
     public void process(OrderCreated orderCreated) throws Exception {
-        OrderDispatched orderDispatched = OrderDispatched.builder()
-                .orderId(orderCreated.getOrderId())
-                .build();
-        DispatchTracking dispatchTracking = DispatchTracking.builder()
-                .orderId(orderCreated.getOrderId())
-                .status(DISPATCHED_STATUS)
-                .build();
+        OrderDispatched orderDispatched = new OrderDispatched(orderCreated.orderId());
+        DispatchTracking dispatchTracking = new DispatchTracking(orderCreated.orderId(), DISPATCHED_STATUS);
 
         kafkaProducer.send(ORDER_DISPATCHED_TOPIC, orderDispatched).get();
         kafkaProducer.send(DISPATCH_TRACKING_TOPIC, dispatchTracking).get();

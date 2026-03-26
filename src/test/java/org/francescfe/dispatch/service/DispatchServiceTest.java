@@ -55,8 +55,8 @@ class DispatchServiceTest {
         verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), dispatchTrackingCaptor.capture());
 
         DispatchTracking dispatchTracking = dispatchTrackingCaptor.getValue();
-        assertEquals(testEvent.getOrderId(), dispatchTracking.getOrderId());
-        assertEquals("DISPATCHED", dispatchTracking.getStatus());
+        assertEquals(testEvent.orderId(), dispatchTracking.orderId());
+        assertEquals("DISPATCHED", dispatchTracking.status());
     }
 
     @Test
