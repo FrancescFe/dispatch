@@ -32,7 +32,7 @@ This starts:
 
 - `order.created`: consumed by this service
 - `order.dispatched`: produced by this service
-- `dispatch.tracking`: produced by this service
+- `dispatch.tracking`: produced by this service and intended to be consumed by the `Tracking` service
 
 ## Testing the application (with docker)
 
@@ -57,4 +57,14 @@ This starts:
 
 ```json
 {"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae", "item": "item-1"}
+```
+
+## Integration
+
+`Dispatch` publishes `dispatch.tracking` topic for the `Tracking` service.
+
+Expected `dispatch.tracking` payload:
+
+```json
+{"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae"}
 ```

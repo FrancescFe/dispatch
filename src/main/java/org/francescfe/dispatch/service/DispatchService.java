@@ -1,6 +1,6 @@
 package org.francescfe.dispatch.service;
 
-import org.francescfe.dispatch.message.DispatchTracking;
+import org.francescfe.dispatch.message.DispatchPreparing;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -11,7 +11,6 @@ public class DispatchService {
 
     private static final String ORDER_DISPATCHED_TOPIC = "order.dispatched";
     private static final String DISPATCH_TRACKING_TOPIC = "dispatch.tracking";
-    private static final String DISPATCHED_STATUS = "DISPATCHED";
     private final KafkaTemplate<String, Object> kafkaProducer;
 
     public DispatchService(KafkaTemplate<String, Object> kafkaProducer) {
@@ -20,9 +19,9 @@ public class DispatchService {
 
     public void process(OrderCreated orderCreated) throws Exception {
         OrderDispatched orderDispatched = new OrderDispatched(orderCreated.orderId());
-        DispatchTracking dispatchTracking = new DispatchTracking(orderCreated.orderId(), DISPATCHED_STATUS);
+        DispatchPreparing dispatchPreparing = new DispatchPreparing(orderCreated.orderId());
 
         kafkaProducer.send(ORDER_DISPATCHED_TOPIC, orderDispatched).get();
-        kafkaProducer.send(DISPATCH_TRACKING_TOPIC, dispatchTracking).get();
+        kafkaProducer.send(DISPATCH_TRACKING_TOPIC, dispatchPreparing).get();
     }
 }
