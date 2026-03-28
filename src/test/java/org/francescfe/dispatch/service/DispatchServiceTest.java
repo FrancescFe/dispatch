@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,31 +48,38 @@ class DispatchServiceTest {
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         service.process(testEvent);
 
-        verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
+        ArgumentCaptor<OrderDispatched> orderDispatchedCaptor = ArgumentCaptor.forClass(OrderDispatched.class);
+        verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), orderDispatchedCaptor.capture());
 
         ArgumentCaptor<DispatchPreparing> dispatchTrackingCaptor = ArgumentCaptor.forClass(DispatchPreparing.class);
         verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), dispatchTrackingCaptor.capture());
 
+        OrderDispatched orderDispatched = orderDispatchedCaptor.getValue();
         DispatchPreparing dispatchPreparing = dispatchTrackingCaptor.getValue();
+
+        assertEquals(testEvent.orderId(), orderDispatched.orderId());
+        assertEquals("Dispatched: " + testEvent.item(), orderDispatched.notes());
         assertEquals(testEvent.orderId(), dispatchPreparing.orderId());
         assertEquals(testEvent.orderId(), dispatchPreparing.orderId());
     }
 
     @Test
     public void process_ProducerThrowsException() {
+        CompletableFuture<SendResult<String, Object>> trackingSendFutureMock = mock(CompletableFuture.class);
+        when(kafkaProducerMock.send(eq("dispatch.tracking"), any(DispatchPreparing.class))).thenReturn(trackingSendFutureMock);
+
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         doThrow(new RuntimeException("Producer failure")).when(kafkaProducerMock).send(eq("order.dispatched"), any(OrderDispatched.class));
 
         Exception exception = assertThrows(RuntimeException.class, () -> service.process(testEvent));
 
+        verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), any(DispatchPreparing.class));
         verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
         assertEquals("Producer failure", exception.getMessage());
     }
 
     @Test
     void process_TrackingProducerThrowsException() {
-        CompletableFuture<SendResult<String, Object>> sendFutureMock = mock(CompletableFuture.class);
-        when(kafkaProducerMock.send(eq("order.dispatched"), any(OrderDispatched.class))).thenReturn(sendFutureMock);
         doThrow(new RuntimeException("Tracking producer failure"))
                 .when(kafkaProducerMock).send(eq("dispatch.tracking"), any(DispatchPreparing.class));
 
@@ -79,8 +87,8 @@ class DispatchServiceTest {
 
         Exception exception = assertThrows(RuntimeException.class, () -> service.process(testEvent));
 
-        verify(kafkaProducerMock, times(1)).send(eq("order.dispatched"), any(OrderDispatched.class));
         verify(kafkaProducerMock, times(1)).send(eq("dispatch.tracking"), any(DispatchPreparing.class));
+        verify(kafkaProducerMock, never()).send(eq("order.dispatched"), any(OrderDispatched.class));
         assertEquals("Tracking producer failure", exception.getMessage());
     }
 }
