@@ -19,9 +19,9 @@ public class DispatchService {
 
     public void process(OrderCreated orderCreated) throws Exception {
         OrderDispatched orderDispatched = new OrderDispatched(orderCreated.orderId());
-        DispatchPreparing dispatchPreparing = new DispatchPreparing(orderCreated.orderId());
-
         kafkaProducer.send(ORDER_DISPATCHED_TOPIC, orderDispatched).get();
+
+        DispatchPreparing dispatchPreparing = new DispatchPreparing(orderCreated.orderId());
         kafkaProducer.send(DISPATCH_TRACKING_TOPIC, dispatchPreparing).get();
     }
 }
