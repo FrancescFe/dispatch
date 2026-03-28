@@ -1,9 +1,11 @@
 package org.francescfe.dispatch.integration;
 
 import org.francescfe.dispatch.DispatchConfiguration;
+import org.francescfe.dispatch.handler.OrderCreatedHandler;
 import org.francescfe.dispatch.message.DispatchPreparing;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
+import org.francescfe.dispatch.service.DispatchService;
 import org.francescfe.dispatch.util.TestEventData;
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
@@ -11,8 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -30,7 +33,12 @@ import static java.util.UUID.randomUUID;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
 
-@SpringBootTest(classes = {DispatchConfiguration.class})
+@SpringBootTest(classes = {
+        DispatchConfiguration.class,
+        OrderDispatchIT.TestConfig.class,
+        DispatchService.class,
+        OrderCreatedHandler.class,
+})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(controlledShutdown = true)
@@ -53,7 +61,8 @@ public class OrderDispatchIT {
     @Autowired
     private KafkaTestListener testListener;
 
-    @Configuration
+    @TestConfiguration
+    @EnableKafka
     static class TestConfig {
 
         @Bean
