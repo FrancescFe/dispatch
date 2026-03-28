@@ -93,7 +93,7 @@ public class OrderDispatchIT {
         testListener.dispatchPreparingCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
 
-        registry.getListenerContainers().stream().forEach(container ->
+        registry.getListenerContainers().forEach(container ->
                         ContainerTestUtils.waitForAssignment(container, embeddedKafkaBroker.getPartitionsPerTopic())
                 );
     }
@@ -101,16 +101,12 @@ public class OrderDispatchIT {
     @Test
     public void testOrderDispatchFlow() throws Exception {
         OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
-        sendMessage(ORDER_CREATED_TOPIC, orderCreated);
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, orderCreated).get();
 
         await().atMost(3, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.dispatchPreparingCounter::get, equalTo(1));
         await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
-    }
-
-    private void sendMessage(String topic, Object data) throws Exception {
-        kafkaTemplate.send(topic, data).get();
     }
 
 }
