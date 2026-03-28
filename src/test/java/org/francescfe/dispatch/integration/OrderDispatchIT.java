@@ -50,7 +50,7 @@ public class OrderDispatchIT {
     private final static String DISPATCH_TRACKING_TOPIC = "dispatch.tracking";
 
     @Autowired
-    private KafkaTemplate kafkaTemplate;
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
