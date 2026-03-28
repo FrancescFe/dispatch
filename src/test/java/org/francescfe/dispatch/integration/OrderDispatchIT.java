@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -53,10 +54,7 @@ public class OrderDispatchIT {
     private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
-    private EmbeddedKafkaBroker embeddedKafkaBroker;
-
-    @Autowired
-    private KafkaListenerEndpointRegistry registry;
+    private ApplicationContext applicationContext;
 
     @Autowired
     private KafkaTestListener testListener;
@@ -90,6 +88,9 @@ public class OrderDispatchIT {
 
     @BeforeEach
     public void setup() {
+        EmbeddedKafkaBroker embeddedKafkaBroker = applicationContext.getBean(EmbeddedKafkaBroker.class);
+        KafkaListenerEndpointRegistry registry = applicationContext.getBean(KafkaListenerEndpointRegistry.class);
+
         testListener.dispatchPreparingCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
 
