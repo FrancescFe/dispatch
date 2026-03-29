@@ -25,17 +25,17 @@ public class DispatchService {
         this.kafkaProducer = kafkaProducer;
     }
 
-    public void process(OrderCreated orderCreated) throws Exception {
+    public void process(String key, OrderCreated orderCreated) throws Exception {
         DispatchPreparing dispatchPreparing = new DispatchPreparing(orderCreated.orderId());
-        kafkaProducer.send(DISPATCH_TRACKING_TOPIC, dispatchPreparing).get();
+        kafkaProducer.send(DISPATCH_TRACKING_TOPIC, key, dispatchPreparing).get();
 
         OrderDispatched orderDispatched = new OrderDispatched(
                 orderCreated.orderId(),
                 APPLICATION_ID,
                 "Dispatched: " + orderCreated.item()
         );
-        kafkaProducer.send(ORDER_DISPATCHED_TOPIC, orderDispatched).get();
+        kafkaProducer.send(ORDER_DISPATCHED_TOPIC, key, orderDispatched).get();
 
-        log.info("Sent messages: orderId: {} - processedById: {}", orderCreated.orderId(), APPLICATION_ID);
+        log.info("Sent messages: key: {} - orderId: {} - processedById: {}", key, orderCreated.orderId(), APPLICATION_ID);
     }
 }
