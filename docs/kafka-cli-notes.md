@@ -13,12 +13,24 @@ bin/kafka-server-start.sh config/server.properties
 bin/kafka-server-stop.sh
 ```
 
-# run consumer/producer
+# run producer/consumer
 ```
-bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.first.topic
+bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.topic
 ```
 ```
-bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.first.topic
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.topic
+```
+
+## run producer/consumer with key
+```
+bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.topic \
+  --reader-property parse.key=true \
+  --reader-property key.separator=:
+```
+```
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.topic \
+  --formatter-property print.key=true \
+  --formatter-property key.separator=:
 ```
 
 # topics
