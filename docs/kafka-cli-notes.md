@@ -15,10 +15,22 @@ bin/kafka-server-stop.sh
 
 # run consumer/producer
 ```
-bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.first.topic
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.topic
 ```
 ```
-bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.first.topic
+bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.topic
+```
+
+## run consumer/producer with key
+```
+bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic my.topic \
+  --property parse.key=true \
+  --property key.separator=:
+```
+```
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic my.topic \
+  --property print.key=true \
+  --property key.separator=:
 ```
 
 # topics
