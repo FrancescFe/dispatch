@@ -24,6 +24,7 @@ import java.util.Map;
 public class DispatchConfiguration {
 
     final private static String TRUSTED_PACKAGES = "org.francescfe.dispatch.message";
+    final private static String ORDER_CREATED_TYPE = "org.francescfe.dispatch.message.OrderCreated";
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
@@ -43,6 +44,8 @@ public class DispatchConfiguration {
         config.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JacksonJsonDeserializer.class);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(JacksonJsonDeserializer.TRUSTED_PACKAGES, TRUSTED_PACKAGES);
+        config.put(JacksonJsonDeserializer.VALUE_DEFAULT_TYPE, ORDER_CREATED_TYPE);
+        config.put(JacksonJsonDeserializer.USE_TYPE_INFO_HEADERS, false);
 
         return new DefaultKafkaConsumerFactory<>(config);
     }
