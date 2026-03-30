@@ -51,22 +51,42 @@ This starts:
 ~/tools/kafka/kafka_2.13-4.2.0/bin/kafka-console-producer.sh \
   --bootstrap-server localhost:29092 \
   --topic order.created \
-  --property parse.key=true \
-  --property key.separator=:
+  --reader-property parse.key=true \
+  --reader-property key.separator=:
 ```
 
 ### Producer Event Example
 
 ```
-"my-key":{"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae", "item": "item-1"}
+my-key:{"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae", "item": "item-1"}
+```
+
+### Consuming Topics Example
+
+```bash
+~/tools/kafka/kafka_2.13-4.2.0/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:29092 \
+  --topic order.created \
+  --formatter-property print.key=true \
+  --formatter-property key.separator=:
 ```
 
 ## Integration
 
 `Dispatch` publishes `dispatch.tracking` topic for the `Tracking` service and preserves the Kafka message key from the original `order.created` event in both outgoing topics.
 
+Tracking repository:
+
+- https://github.com/FrancescFe/tracking (SpringBoot 4 + Kotlin + Gradle)
+
 Expected `dispatch.tracking` payload:
 
-```json
-{"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae"}
 ```
+my-key:{"orderId": "26b6f2b1-cc22-42f8-8285-82b8d309d1ae"}
+```
+
+## Notes
+
+Kafka CLI usage notes:
+
+- [docs/kafka-cli-notes.md](docs/kafka-cli-notes.md)
