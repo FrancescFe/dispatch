@@ -4,7 +4,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.francescfe.dispatch.message.OrderCreated;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,32 +23,28 @@ import java.util.Map;
 @Configuration
 public class DispatchConfiguration {
 
+    final private static String TRUSTED_PACKAGES = "org.francescfe.dispatch.message";
+
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, OrderCreated> kafkaListenerContainerFactory(
-            ConsumerFactory<String, OrderCreated> consumerFactory) {
-        ConcurrentKafkaListenerContainerFactory<String, OrderCreated> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> consumerFactory) {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         return factory;
     }
 
     @Bean
-    public ConsumerFactory<String, OrderCreated> consumerFactory(
+    public ConsumerFactory<String, Object> consumerFactory(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        config.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JacksonJsonDeserializer.class);
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(JacksonJsonDeserializer.TRUSTED_PACKAGES, TRUSTED_PACKAGES);
 
-        JacksonJsonDeserializer<OrderCreated> jsonDeserializer =
-                new JacksonJsonDeserializer<>(OrderCreated.class);
-        jsonDeserializer.trustedPackages("org.francescfe.dispatch.message");
-
-        return new DefaultKafkaConsumerFactory<>(
-                config,
-                new StringDeserializer(),
-                new ErrorHandlingDeserializer<>(jsonDeserializer)
-        );
+        return new DefaultKafkaConsumerFactory<>(config);
     }
 
     @Bean
