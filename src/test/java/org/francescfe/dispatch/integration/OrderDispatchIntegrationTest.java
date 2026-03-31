@@ -2,6 +2,7 @@ package org.francescfe.dispatch.integration;
 
 import org.francescfe.dispatch.DispatchConfiguration;
 import org.francescfe.dispatch.handler.OrderCreatedHandler;
+import org.francescfe.dispatch.message.DispatchCompleted;
 import org.francescfe.dispatch.message.DispatchPreparing;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,6 +31,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,16 +42,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = {
         DispatchConfiguration.class,
-        OrderDispatchIT.TestConfig.class,
+        OrderDispatchIntegrationTest.TestConfig.class,
         DispatchService.class,
         OrderCreatedHandler.class,
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(controlledShutdown = true)
-public class OrderDispatchIT {
+public class OrderDispatchIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(OrderDispatchIT.class);
+    private static final Logger log = LoggerFactory.getLogger(OrderDispatchIntegrationTest.class);
     private final static String ORDER_CREATED_TOPIC = "order.created";
     private final static String ORDER_DISPATCHED_TOPIC = "order.dispatched";
     private final static String DISPATCH_TRACKING_TOPIC = "dispatch.tracking";
@@ -65,18 +68,24 @@ public class OrderDispatchIT {
     @TestConfiguration
     @EnableKafka
     static class TestConfig {
-
         @Bean
         public KafkaTestListener testListener() {
             return new KafkaTestListener();
         }
     }
 
+    @KafkaListener(
+            id = "dispatchTrackingTestListener",
+            groupId = "KafkaIntegrationTest",
+            topics = {DISPATCH_TRACKING_TOPIC, ORDER_DISPATCHED_TOPIC},
+            containerFactory = "kafkaListenerContainerFactory"
+    )
     public static class KafkaTestListener {
         AtomicInteger dispatchPreparingCounter = new AtomicInteger(0);
+        AtomicInteger dispatchCompletedCounter = new AtomicInteger(0);
         AtomicInteger orderDispatchedCounter = new AtomicInteger(0);
 
-        @KafkaListener(groupId = "KafkaIntegrationTest", topics = DISPATCH_TRACKING_TOPIC)
+        @KafkaHandler
         void receiveDispatchPreparing(@Header(KafkaHeaders.RECEIVED_KEY) String key, @Payload DispatchPreparing payload) {
             log.debug("Received DispatchPreparing key: {} - payload: {}", key, payload);
             assertNotNull(key);
@@ -84,7 +93,15 @@ public class OrderDispatchIT {
             dispatchPreparingCounter.incrementAndGet();
         }
 
-        @KafkaListener(groupId = "KafkaIntegrationTest", topics = ORDER_DISPATCHED_TOPIC)
+        @KafkaHandler
+        void receiveDispatchCompleted(@Header(KafkaHeaders.RECEIVED_KEY) String key, @Payload DispatchCompleted payload) {
+            log.debug("Received DispatchCompleted key: {} - payload: {}", key, payload);
+            assertNotNull(key);
+            assertNotNull(payload);
+            dispatchCompletedCounter.incrementAndGet();
+        }
+
+        @KafkaHandler
         void receiveOrderDispatched(@Header(KafkaHeaders.RECEIVED_KEY) String key, @Payload OrderDispatched payload) {
             log.debug("Received OrderDispatched key: {} - payload: {}", key, payload);
             assertNotNull(key);
@@ -99,11 +116,13 @@ public class OrderDispatchIT {
         KafkaListenerEndpointRegistry registry = applicationContext.getBean(KafkaListenerEndpointRegistry.class);
 
         testListener.dispatchPreparingCounter.set(0);
+        testListener.dispatchCompletedCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
 
-        registry.getListenerContainers().forEach(container ->
-                        ContainerTestUtils.waitForAssignment(container, embeddedKafkaBroker.getPartitionsPerTopic())
-                );
+        registry.getListenerContainers().forEach(
+                container -> ContainerTestUtils.waitForAssignment(container,
+                        Objects.requireNonNull(container.getContainerProperties().getTopics()).length * embeddedKafkaBroker.getPartitionsPerTopic()
+        ));
     }
 
     @Test
@@ -114,6 +133,8 @@ public class OrderDispatchIT {
 
         await().atMost(3, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.dispatchPreparingCounter::get, equalTo(1));
+        await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.dispatchCompletedCounter::get, equalTo(1));
         await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
     }
