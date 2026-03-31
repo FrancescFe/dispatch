@@ -1,5 +1,6 @@
 package org.francescfe.dispatch.service;
 
+import org.francescfe.dispatch.message.DispatchCompleted;
 import org.francescfe.dispatch.message.DispatchPreparing;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.message.OrderDispatched;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static java.util.UUID.randomUUID;
@@ -35,6 +37,12 @@ public class DispatchService {
                 "Dispatched: " + orderCreated.item()
         );
         kafkaProducer.send(ORDER_DISPATCHED_TOPIC, key, orderDispatched).get();
+
+        DispatchCompleted dispatchCompleted = new DispatchCompleted(
+                orderCreated.orderId(),
+                Instant.now().toString()
+        );
+        kafkaProducer.send(DISPATCH_TRACKING_TOPIC, key, dispatchCompleted).get();
 
         log.info("Sent messages: key: {} - orderId: {} - processedById: {}", key, orderCreated.orderId(), APPLICATION_ID);
     }
