@@ -42,16 +42,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = {
         DispatchConfiguration.class,
-        OrderDispatchIT.TestConfig.class,
+        OrderDispatchIntegrationTest.TestConfig.class,
         DispatchService.class,
         OrderCreatedHandler.class,
 })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(controlledShutdown = true)
-public class OrderDispatchIT {
+public class OrderDispatchIntegrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(OrderDispatchIT.class);
+    private static final Logger log = LoggerFactory.getLogger(OrderDispatchIntegrationTest.class);
     private final static String ORDER_CREATED_TOPIC = "order.created";
     private final static String ORDER_DISPATCHED_TOPIC = "order.dispatched";
     private final static String DISPATCH_TRACKING_TOPIC = "dispatch.tracking";
