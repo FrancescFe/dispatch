@@ -38,10 +38,12 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static java.util.UUID.randomUUID;
 import static org.awaitility.Awaitility.await;
 import static org.francescfe.dispatch.integration.WiremockUtils.stubWiremock;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = {
@@ -133,7 +135,7 @@ public class OrderDispatchIntegrationTest {
     }
 
     @Test
-    public void testOrderDispatchFlow() throws Exception {
+    public void testOrderDispatchFlow_Success() throws Exception {
         stubWiremock("/api/stock?item=my-item", 200, "true");
 
         OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
@@ -148,4 +150,34 @@ public class OrderDispatchIntegrationTest {
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
     }
 
+    @Test
+    public void testOrderDispatchFlow_NonRetryableException() throws Exception {
+        stubWiremock("/api/stock?item=my-item", 400, "Bad Request");
+
+        OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
+        String key = randomUUID().toString();
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
+
+        TimeUnit.SECONDS.sleep(3);
+        assertEquals(0, testListener.dispatchPreparingCounter.get());
+        assertEquals(0, testListener.orderDispatchedCounter.get());
+        assertEquals(0, testListener.dispatchCompletedCounter.get());
+    }
+
+    @Test
+    public void testOrderDispatchFlow_RetryThenSuccess() throws Exception {
+        stubWiremock("/api/stock?item=my-item", 503, "Service unavailable", "failOnce", STARTED, "succeedNextTime");
+        stubWiremock("/api/stock?item=my-item", 200, "true", "failOnce", "succeedNextTime", "succeedNextTime");
+
+        OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
+        String key = randomUUID().toString();
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
+
+        await().atMost(3, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.dispatchPreparingCounter::get, equalTo(1));
+        await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.dispatchCompletedCounter::get, equalTo(1));
+        await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.orderDispatchedCounter::get, equalTo(1));
+    }
 }
