@@ -195,4 +195,19 @@ public class OrderDispatchIntegrationTest {
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
         assertEquals(0, testListener.orderCreatedDLTCounter.get());
     }
+
+    @Test
+    public void testOrderDispatchFlow_RetryUntilFailure() throws Exception {
+        stubWiremock("/api/stock?item=my-item", 503, "Service unavailable");
+
+        OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
+        String key = randomUUID().toString();
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
+
+        await().atMost(5, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.orderCreatedDLTCounter::get, equalTo(1));
+        assertEquals(0, testListener.dispatchPreparingCounter.get());
+        assertEquals(0, testListener.orderDispatchedCounter.get());
+        assertEquals(0, testListener.dispatchCompletedCounter.get());
+    }
 }
