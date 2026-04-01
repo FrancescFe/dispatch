@@ -63,6 +63,7 @@ public class OrderDispatchIntegrationTest {
     private final static String ORDER_CREATED_TOPIC = "order.created";
     private final static String ORDER_DISPATCHED_TOPIC = "order.dispatched";
     private final static String DISPATCH_TRACKING_TOPIC = "dispatch.tracking";
+    private final static String ORDER_CREATED_DLT_TOPIC = "order.created-dlt";
 
     @Autowired
     private KafkaTemplate<String, Object> kafkaTemplate;
@@ -85,13 +86,14 @@ public class OrderDispatchIntegrationTest {
     @KafkaListener(
             id = "dispatchTrackingTestListener",
             groupId = "KafkaIntegrationTest",
-            topics = {DISPATCH_TRACKING_TOPIC, ORDER_DISPATCHED_TOPIC},
+            topics = {DISPATCH_TRACKING_TOPIC, ORDER_DISPATCHED_TOPIC, ORDER_CREATED_DLT_TOPIC},
             containerFactory = "kafkaListenerContainerFactory"
     )
     public static class KafkaTestListener {
         AtomicInteger dispatchPreparingCounter = new AtomicInteger(0);
         AtomicInteger dispatchCompletedCounter = new AtomicInteger(0);
         AtomicInteger orderDispatchedCounter = new AtomicInteger(0);
+        AtomicInteger orderCreatedDLTCounter = new AtomicInteger(0);
 
         @KafkaHandler
         void receiveDispatchPreparing(@Header(KafkaHeaders.RECEIVED_KEY) String key, @Payload DispatchPreparing payload) {
@@ -116,6 +118,14 @@ public class OrderDispatchIntegrationTest {
             assertNotNull(payload);
             orderDispatchedCounter.incrementAndGet();
         }
+
+        @KafkaHandler
+        void receiveOrderCreatedDLT(@Header(KafkaHeaders.RECEIVED_KEY) String key, @Payload OrderCreated payload) {
+            log.debug("Received OrderCreated DLT key: {} - payload: {}", key, payload);
+            assertNotNull(key);
+            assertNotNull(payload);
+            orderCreatedDLTCounter.incrementAndGet();
+        }
     }
 
     @BeforeEach
@@ -123,10 +133,12 @@ public class OrderDispatchIntegrationTest {
         EmbeddedKafkaBroker embeddedKafkaBroker = applicationContext.getBean(EmbeddedKafkaBroker.class);
         KafkaListenerEndpointRegistry registry = applicationContext.getBean(KafkaListenerEndpointRegistry.class);
 
-        WiremockUtils.reset();
         testListener.dispatchPreparingCounter.set(0);
         testListener.dispatchCompletedCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
+        testListener.orderCreatedDLTCounter.set(0);
+
+        WiremockUtils.reset();
 
         registry.getListenerContainers().forEach(
                 container -> ContainerTestUtils.waitForAssignment(container,
@@ -148,6 +160,7 @@ public class OrderDispatchIntegrationTest {
                 .until(testListener.dispatchCompletedCounter::get, equalTo(1));
         await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
+        assertEquals(0, testListener.orderCreatedDLTCounter.get());
     }
 
     @Test
@@ -158,7 +171,8 @@ public class OrderDispatchIntegrationTest {
         String key = randomUUID().toString();
         kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
 
-        TimeUnit.SECONDS.sleep(3);
+        await().atMost(3, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.orderCreatedDLTCounter::get, equalTo(1));
         assertEquals(0, testListener.dispatchPreparingCounter.get());
         assertEquals(0, testListener.orderDispatchedCounter.get());
         assertEquals(0, testListener.dispatchCompletedCounter.get());
@@ -179,5 +193,21 @@ public class OrderDispatchIntegrationTest {
                 .until(testListener.dispatchCompletedCounter::get, equalTo(1));
         await().atMost(1, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .until(testListener.orderDispatchedCounter::get, equalTo(1));
+        assertEquals(0, testListener.orderCreatedDLTCounter.get());
+    }
+
+    @Test
+    public void testOrderDispatchFlow_RetryUntilFailure() throws Exception {
+        stubWiremock("/api/stock?item=my-item", 503, "Service unavailable");
+
+        OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
+        String key = randomUUID().toString();
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
+
+        await().atMost(5, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
+                .until(testListener.orderCreatedDLTCounter::get, equalTo(1));
+        assertEquals(0, testListener.dispatchPreparingCounter.get());
+        assertEquals(0, testListener.orderDispatchedCounter.get());
+        assertEquals(0, testListener.dispatchCompletedCounter.get());
     }
 }
