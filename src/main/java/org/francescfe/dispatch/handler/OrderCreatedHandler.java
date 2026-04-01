@@ -1,5 +1,7 @@
 package org.francescfe.dispatch.handler;
 
+import org.francescfe.dispatch.exception.NonRetryableException;
+import org.francescfe.dispatch.exception.RetryableException;
 import org.francescfe.dispatch.message.OrderCreated;
 import org.francescfe.dispatch.service.DispatchService;
 import org.slf4j.Logger;
@@ -37,8 +39,11 @@ public class OrderCreatedHandler {
         log.info("Received message: partition: {} - key: {} - payload: {}", partition, key, payload);
         try {
             dispatchService.process(key, payload);
+        } catch (RetryableException e) {
+            log.warn("Retryable exception: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("Processing failure", e);
+            log.error("NonRetryable exception: {}", e.getMessage());
+            throw new NonRetryableException(e);
         }
     }
 }
