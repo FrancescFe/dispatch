@@ -31,6 +31,8 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import org.wiremock.spring.ConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -38,18 +40,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.UUID.randomUUID;
 import static org.awaitility.Awaitility.await;
+import static org.francescfe.dispatch.integration.WiremockUtils.stubWiremock;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest(classes = {
         DispatchConfiguration.class,
         OrderDispatchIntegrationTest.TestConfig.class,
+        StockServiceClient.class,
         DispatchService.class,
         OrderCreatedHandler.class,
 })
+@EnableWireMock(@ConfigureWireMock())
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
 @EmbeddedKafka(controlledShutdown = true)
@@ -69,20 +71,12 @@ public class OrderDispatchIntegrationTest {
     @Autowired
     private KafkaTestListener testListener;
 
-    @Autowired
-    private StockServiceClient stockServiceClient;
-
     @TestConfiguration
     @EnableKafka
     static class TestConfig {
         @Bean
         public KafkaTestListener testListener() {
             return new KafkaTestListener();
-        }
-
-        @Bean
-        public StockServiceClient stockServiceClient() {
-            return mock(StockServiceClient.class);
         }
     }
 
@@ -127,7 +121,7 @@ public class OrderDispatchIntegrationTest {
         EmbeddedKafkaBroker embeddedKafkaBroker = applicationContext.getBean(EmbeddedKafkaBroker.class);
         KafkaListenerEndpointRegistry registry = applicationContext.getBean(KafkaListenerEndpointRegistry.class);
 
-        when(stockServiceClient.checkAvailability(anyString())).thenReturn("true");
+        WiremockUtils.reset();
         testListener.dispatchPreparingCounter.set(0);
         testListener.dispatchCompletedCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
@@ -140,6 +134,8 @@ public class OrderDispatchIntegrationTest {
 
     @Test
     public void testOrderDispatchFlow() throws Exception {
+        stubWiremock("/api/stock?item=my-item", 200, "true");
+
         OrderCreated orderCreated = TestEventData.buildOrderCreated(randomUUID(), "my-item");
         String key = randomUUID().toString();
         kafkaTemplate.send(ORDER_CREATED_TOPIC, key, orderCreated).get();
