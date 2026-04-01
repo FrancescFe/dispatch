@@ -1,6 +1,7 @@
 package org.francescfe.dispatch.integration;
 
 import org.francescfe.dispatch.DispatchConfiguration;
+import org.francescfe.dispatch.client.StockServiceClient;
 import org.francescfe.dispatch.handler.OrderCreatedHandler;
 import org.francescfe.dispatch.message.DispatchCompleted;
 import org.francescfe.dispatch.message.DispatchPreparing;
@@ -39,6 +40,9 @@ import static java.util.UUID.randomUUID;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(classes = {
         DispatchConfiguration.class,
@@ -65,12 +69,20 @@ public class OrderDispatchIntegrationTest {
     @Autowired
     private KafkaTestListener testListener;
 
+    @Autowired
+    private StockServiceClient stockServiceClient;
+
     @TestConfiguration
     @EnableKafka
     static class TestConfig {
         @Bean
         public KafkaTestListener testListener() {
             return new KafkaTestListener();
+        }
+
+        @Bean
+        public StockServiceClient stockServiceClient() {
+            return mock(StockServiceClient.class);
         }
     }
 
@@ -115,6 +127,7 @@ public class OrderDispatchIntegrationTest {
         EmbeddedKafkaBroker embeddedKafkaBroker = applicationContext.getBean(EmbeddedKafkaBroker.class);
         KafkaListenerEndpointRegistry registry = applicationContext.getBean(KafkaListenerEndpointRegistry.class);
 
+        when(stockServiceClient.checkAvailability(anyString())).thenReturn("true");
         testListener.dispatchPreparingCounter.set(0);
         testListener.dispatchCompletedCounter.set(0);
         testListener.orderDispatchedCounter.set(0);
