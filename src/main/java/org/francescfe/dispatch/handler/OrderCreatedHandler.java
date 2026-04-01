@@ -41,6 +41,7 @@ public class OrderCreatedHandler {
             dispatchService.process(key, payload);
         } catch (RetryableException e) {
             log.warn("Retryable exception: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("NonRetryable exception: {}", e.getMessage());
             throw new NonRetryableException(e);

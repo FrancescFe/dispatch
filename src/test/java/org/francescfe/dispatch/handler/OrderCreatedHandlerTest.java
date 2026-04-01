@@ -52,7 +52,7 @@ class OrderCreatedHandlerTest {
         OrderCreated testEvent = TestEventData.buildOrderCreated(randomUUID(), randomUUID().toString());
         doThrow(new RetryableException("Service failure")).when(dispatchServiceMock).process(key, testEvent);
 
-        Exception exception = assertThrows(RuntimeException.class, () -> handler.listen(0, key, testEvent));
+        Exception exception = assertThrows(RetryableException.class, () -> handler.listen(0, key, testEvent));
         assertEquals("Service failure", exception.getMessage());
         verify(dispatchServiceMock, times(1)).process(key, testEvent);
     }
